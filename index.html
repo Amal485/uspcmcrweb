@@ -51,6 +51,7 @@
         </li>
         <li><a href="events.html">Events</a></li>
         <li><a href="gallery.html">Gallery</a></li>
+        <li><a href="watch.html">Watch</a></li>
         <li><a href="contact.html">Contact</a></li>
       </ul>
 
@@ -93,6 +94,27 @@
       <p>A close-knit congregation where faith grows, love flourishes, and lives are transformed — You are welcome here.</p>
     </div>
   </div>
+
+  <!-- ===== LIVE STREAM WIDGET (shown only when channel is live) ===== -->
+  <section id="live-widget" style="display:none;background:var(--navy);padding:3rem 0">
+    <div class="container">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem">
+        <span style="display:inline-flex;align-items:center;gap:0.4rem;background:#e53e3e;color:#fff;font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:0.3rem 0.75rem;border-radius:20px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#fff;animation:livepulse 1.4s infinite"></span>Live Now
+        </span>
+        <p style="color:rgba(255,255,255,0.7);font-size:0.85rem">USPC Manchester is streaming live</p>
+      </div>
+      <div id="live-embed" style="border-radius:10px;overflow:hidden;aspect-ratio:16/9;max-width:860px">
+        <!-- iframe injected by JS -->
+      </div>
+      <p style="margin-top:1rem;text-align:right">
+        <a href="watch.html" style="color:var(--gold);font-size:0.85rem;font-weight:600">Open Watch page →</a>
+      </p>
+    </div>
+  </section>
+  <style>
+    @keyframes livepulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
 
   <!-- ===== ABOUT / WELCOME ===== -->
   <section class="about-section" id="about">
@@ -348,6 +370,7 @@
             <li><a href="ministries.html">Ministries</a></li>
             <li><a href="events.html">Events</a></li>
             <li><a href="gallery.html">Gallery</a></li>
+            <li><a href="watch.html">Watch</a></li>
             <li><a href="contact.html">Contact</a></li>
           </ul>
         </div>

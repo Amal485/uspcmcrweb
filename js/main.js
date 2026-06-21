@@ -95,6 +95,172 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ----- YouTube Integration -----
+  const YT = {
+    key: 'AIzaSyB0Ih441qc5696rs_ANj_OuY4lsc0H8ZV8',
+    handle: 'USPC_MCR',
+    _id: null,
+
+    async channelId() {
+      if (this._id) return this._id;
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${this.handle}&key=${this.key}`);
+      const d = await r.json();
+      this._id = d.items?.[0]?.id || null;
+      return this._id;
+    },
+
+    async liveVideoId(channelId) {
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=id&channelId=${channelId}&eventType=live&type=video&maxResults=1&key=${this.key}`);
+      const d = await r.json();
+      return d.items?.[0]?.id?.videoId || null;
+    },
+
+    async latestVideos(channelId, max = 6) {
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&type=video&order=date&maxResults=${max}&key=${this.key}`);
+      const d = await r.json();
+      return d.items || [];
+    },
+
+    async playlists(channelId, max = 8) {
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/playlists?part=snippet&channelId=${channelId}&maxResults=${max}&key=${this.key}`);
+      const d = await r.json();
+      return d.items || [];
+    },
+
+    videoCard(video, clickToPlay = false) {
+      const id = video.id?.videoId || video.id;
+      const s = video.snippet;
+      const thumb = s.thumbnails?.high?.url || s.thumbnails?.medium?.url || '';
+      const date = new Date(s.publishedAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+      if (clickToPlay) {
+        return `<div class="video-card">
+          <div class="video-thumb-wrap" data-vid="${id}" style="cursor:pointer;position:relative;border-radius:8px;overflow:hidden;aspect-ratio:16/9;background:#000">
+            <img src="${thumb}" alt="${s.title}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" />
+            <div class="play-btn" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none">▶</div>
+          </div>
+          <h3>${s.title}</h3>
+          <p>${date}</p>
+        </div>`;
+      }
+      return `<div class="video-card">
+        <a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">
+          <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:16/9;background:#000">
+            <img src="${thumb}" alt="${s.title}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" />
+            <div class="play-btn" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)">▶</div>
+          </div>
+        </a>
+        <h3>${s.title}</h3>
+        <p>${date}</p>
+      </div>`;
+    },
+
+    playlistCard(pl) {
+      const s = pl.snippet;
+      const thumb = s.thumbnails?.high?.url || s.thumbnails?.medium?.url || '';
+      return `<a href="https://www.youtube.com/playlist?list=${pl.id}" target="_blank" rel="noopener" class="playlist-card">
+        <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:16/9;background:#000">
+          <img src="${thumb}" alt="${s.title}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" />
+          <div class="playlist-overlay">
+            <span>▶ Playlist</span>
+          </div>
+        </div>
+        <h3>${s.title}</h3>
+        <p>${s.description ? s.description.slice(0, 80) + (s.description.length > 80 ? '…' : '') : ''}</p>
+      </a>`;
+    }
+  };
+
+  // Click-to-play: swap thumbnail for iframe on click
+  document.addEventListener('click', e => {
+    const wrap = e.target.closest('[data-vid]');
+    if (!wrap) return;
+    const vid = wrap.dataset.vid;
+    wrap.innerHTML = `<iframe src="https://www.youtube.com/embed/${vid}?autoplay=1" frameborder="0" allow="autoplay;encrypted-media" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%"></iframe>`;
+    wrap.style.position = 'relative';
+  });
+
+  // Home page: live widget
+  const liveWidget = document.getElementById('live-widget');
+  if (liveWidget) {
+    (async () => {
+      try {
+        const cid = await YT.channelId();
+        if (!cid) return;
+        const liveId = await YT.liveVideoId(cid);
+        if (liveId) {
+          document.getElementById('live-embed').innerHTML =
+            `<iframe src="https://www.youtube.com/embed/${liveId}?autoplay=0" frameborder="0" allow="encrypted-media" allowfullscreen style="width:100%;height:100%;display:block"></iframe>`;
+          liveWidget.style.display = 'block';
+        }
+      } catch { /* silently skip if API unavailable */ }
+    })();
+  }
+
+  // Gallery page: latest videos
+  const galleryVideoGrid = document.getElementById('gallery-video-grid');
+  if (galleryVideoGrid) {
+    (async () => {
+      try {
+        const cid = await YT.channelId();
+        if (!cid) throw new Error('no channel');
+        const videos = await YT.latestVideos(cid, 3);
+        if (!videos.length) throw new Error('no videos');
+        galleryVideoGrid.innerHTML = videos.map(v => YT.videoCard(v, true)).join('');
+      } catch {
+        galleryVideoGrid.innerHTML = `<p style="color:var(--gray);grid-column:1/-1">Videos unavailable. <a href="https://www.youtube.com/@USPC_MCR" target="_blank" style="color:var(--gold)">Watch on YouTube →</a></p>`;
+      }
+    })();
+  }
+
+  // Watch page: live + latest videos + playlists
+  const watchLiveSection = document.getElementById('watch-live-section');
+  const watchVideoGrid   = document.getElementById('watch-video-grid');
+  const watchPlaylists   = document.getElementById('watch-playlists');
+
+  if (watchLiveSection || watchVideoGrid || watchPlaylists) {
+    (async () => {
+      try {
+        const cid = await YT.channelId();
+        if (!cid) throw new Error('no channel');
+
+        const [liveId, videos, playlists] = await Promise.all([
+          YT.liveVideoId(cid),
+          watchVideoGrid  ? YT.latestVideos(cid, 6) : Promise.resolve([]),
+          watchPlaylists  ? YT.playlists(cid, 8)    : Promise.resolve([])
+        ]);
+
+        if (watchLiveSection) {
+          if (liveId) {
+            document.getElementById('watch-live-embed').innerHTML =
+              `<iframe src="https://www.youtube.com/embed/${liveId}" frameborder="0" allow="encrypted-media" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%"></iframe>`;
+            watchLiveSection.style.display = 'block';
+            document.getElementById('watch-no-live').style.display = 'none';
+          } else {
+            watchLiveSection.style.display = 'none';
+            document.getElementById('watch-no-live').style.display = 'block';
+          }
+        }
+
+        if (watchVideoGrid) {
+          watchVideoGrid.innerHTML = videos.length
+            ? videos.map(v => YT.videoCard(v, true)).join('')
+            : `<p style="color:var(--gray);grid-column:1/-1">No videos found.</p>`;
+        }
+
+        if (watchPlaylists) {
+          watchPlaylists.innerHTML = playlists.length
+            ? playlists.map(pl => YT.playlistCard(pl)).join('')
+            : `<p style="color:var(--gray);grid-column:1/-1">No playlists found.</p>`;
+        }
+
+      } catch {
+        [watchVideoGrid, watchPlaylists].forEach(el => {
+          if (el) el.innerHTML = `<p style="color:var(--gray);grid-column:1/-1">Unable to load. <a href="https://www.youtube.com/@USPC_MCR" target="_blank" style="color:var(--gold)">Visit our YouTube channel →</a></p>`;
+        });
+      }
+    })();
+  }
+
   // ----- Home Page: Live Google Calendar Events -----
   const eventsGrid = document.getElementById('events-grid');
   if (eventsGrid) {
